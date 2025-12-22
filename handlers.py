@@ -173,49 +173,64 @@ def format_cooldown(seconds: int) -> str:
     return f"🔴 {format_time(seconds)}"
 
 
-def get_ready_time(seconds: int) -> str:
-    """Calculate exact time when cooldown will be ready."""
-    from datetime import datetime, timedelta
+def get_wib_now():
+    """Get current time in WIB (UTC+7)."""
+    from datetime import datetime, timezone, timedelta
+    wib = timezone(timedelta(hours=7))
+    return datetime.now(wib)
+
+
+def format_exact_time(seconds: int, show_date: bool = False) -> str:
+    """
+    Format seconds into exact WIB time.
+    If show_date=True or >24h, shows date like 'Des 28, 18:25'.
+    Otherwise shows just time like '18:25'.
+    """
+    from datetime import timedelta
     if seconds <= 0:
         return ""
-    ready_at = datetime.now() + timedelta(seconds=seconds)
-    return ready_at.strftime("%H:%M")
+    
+    target = get_wib_now() + timedelta(seconds=seconds)
+    
+    # If more than 24 hours, show date
+    if seconds > 86400 or show_date:
+        months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 
+                  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+        return f"{months[target.month-1]} {target.day}, {target.strftime('%H:%M')}"
+    else:
+        return target.strftime("%H:%M")
 
 
-def get_bar_full_time(current: int, maximum: int, rate_per_min: float) -> str:
+def format_bar_with_fulltime(label: str, current: int, maximum: int, fulltime: int) -> str:
     """
-    Calculate exact time when a bar will be full.
-    rate_per_min: how many points gained per minute
-    - Energy: 5 per 15 min = 0.333/min
-    - Nerve: 1 per 5 min = 0.2/min
+    Format bar line with full time from API's fulltime field.
+    fulltime: seconds until bar is full (from API).
     """
-    from datetime import datetime, timedelta
-    if current >= maximum or rate_per_min <= 0:
-        return ""
-    needed = maximum - current
-    minutes_to_full = needed / rate_per_min
-    full_at = datetime.now() + timedelta(minutes=minutes_to_full)
-    return full_at.strftime("%H:%M")
-
-
-def format_bar_with_time(label: str, current: int, maximum: int, rate_per_min: float) -> str:
-    """Format bar line with optional full time."""
     bar = create_bar(current, maximum)
     base = f"<code>{label} [{bar}]</code> {current}/{maximum}"
     
-    if current < maximum and rate_per_min > 0:
-        full_time = get_bar_full_time(current, maximum, rate_per_min)
-        return f"{base} (Full: {full_time})"
+    if fulltime > 0 and current < maximum:
+        time_str = format_exact_time(fulltime)
+        return f"{base} ({time_str})"
     return base
 
 
 def format_cooldown_with_time(label: str, seconds: int) -> str:
-    """Format cooldown line with exact ready time."""
+    """Format cooldown line with exact ready time in WIB."""
     if seconds <= 0:
         return f"<code>{label}:</code> ✅ Ready"
     
-    ready_time = get_ready_time(seconds)
-    return f"<code>{label}:</code> 🔴 {format_time(seconds)} ({ready_time})"
+    time_str = format_exact_time(seconds)
+    return f"<code>{label}:</code> 🔴 {format_time(seconds)} ({time_str})"
+
+
+def format_education_status(timeleft: int) -> str:
+    """Format education status with exact completion date."""
+    if timeleft <= 0:
+        return "✅ Selesai"
+    
+    time_str = format_exact_time(timeleft, show_date=True)
+    return f"📚 {format_time(timeleft)} ({time_str})"
 
 
 def get_crime_advice(nerve_max: int) -> dict:
@@ -293,16 +308,20 @@ async def format_dashboard_text() -> str:
         travel = data.get("travel", {})
         time_text = f"{format_time(travel.get('time_left', 0))} to land"
     
-    # Get bars
+    # Get bars (including fulltime from API)
     energy = data.get("energy", {})
     nerve = data.get("nerve", {})
     happy = data.get("happy", {})
     life = data.get("life", {})
     
     e_cur, e_max = energy.get("current", 0), energy.get("maximum", 0)
+    e_full = energy.get("fulltime", 0)
     n_cur, n_max = nerve.get("current", 0), nerve.get("maximum", 0)
+    n_full = nerve.get("fulltime", 0)
     h_cur, h_max = happy.get("current", 0), happy.get("maximum", 0)
+    h_full = happy.get("fulltime", 0)
     l_cur, l_max = life.get("current", 0), life.get("maximum", 0)
+    l_full = life.get("fulltime", 0)
     
     
     # Get Battle Stats (API returns flat structure, not nested)
@@ -332,15 +351,14 @@ async def format_dashboard_text() -> str:
         total_nw = sum(v for k,v in networth.items() if isinstance(v, (int, float)))
         
     # Education
-    edu_current = data.get("education_current", 0)
     edu_time = data.get("education_timeleft", 0)
-    edu_status = f"📚 {format_time(edu_time)} left" if edu_time > 0 else "✅ Ready"
+    edu_status = format_education_status(edu_time)
     
     # Consigliere Advice
     advice = get_crime_advice(n_max)
     
-    # Time
-    now_str = datetime.now().strftime("%H:%M")
+    # Time (WIB)
+    now_str = get_wib_now().strftime("%H:%M")
     
     # Construct Message
     msg = (
@@ -351,10 +369,10 @@ async def format_dashboard_text() -> str:
         f"⏳ <i>{desc}</i>\n"
         f"🕐 <i>{time_text}</i>\n"
         f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
-        f"⚡️ {format_bar_with_time('Energy', e_cur, e_max, 5/15)}\n"
-        f"🔥 {format_bar_with_time('Nerve ', n_cur, n_max, 1/5)}\n"
-        f"🙂 <code>Happy  [{create_bar(h_cur, h_max)}]</code> {h_cur}/{h_max}\n"
-        f"❤️ <code>Life   [{create_bar(l_cur, l_max)}]</code> {l_cur}/{l_max}\n"
+        f"⚡️ {format_bar_with_fulltime('Energy', e_cur, e_max, e_full)}\n"
+        f"🔥 {format_bar_with_fulltime('Nerve ', n_cur, n_max, n_full)}\n"
+        f"🙂 {format_bar_with_fulltime('Happy ', h_cur, h_max, h_full)}\n"
+        f"❤️ {format_bar_with_fulltime('Life  ', l_cur, l_max, l_full)}\n"
         f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
         f"⚔️ <b>BATTLE STATS</b> (Total: {total_bs:,})\n"
         f"💪 Str: {strength:<6,} 🛡️ Def: {defense:,}\n"

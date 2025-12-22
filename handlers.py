@@ -44,24 +44,27 @@ def auth_required(func):
 @auth_required
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command with Reply Keyboard menu."""
-    welcome_message = """🎩 *The Consigliere v3.5*
+    welcome_message = """🎩 *The Consigliere v3.0*
     
 Selamat datang, Bos.
 
 Saya adalah tangan kanan setia Anda di dunia kriminal Torn City.
 
-*Gunakan menu di bawah atau perintah:*
-• /stats - Live Dashboard
-• /price <item> - Cek harga
+*Fitur Dashboard v3.0:*
+⚡ Energy/Nerve dengan estimasi waktu penuh
+⚔️ Battle Stats & Work Stats lengkap
+💡 Consigliere Advice untuk crime
+🔔 Notifikasi event real-time
+
+*Commands:*
+• /stats - Live Dashboard Pro
+• /price <item> - Cek harga market
 • /stock - Inventory
 • /crime - Saran AI
-• /company - Status company
+• /company - Status pekerjaan
 • /help - Bantuan
 
-*Satpam System Aktif:*
-📩 Inbox • 💰 Barang laku • ⚔️ Serangan
-
-_"Seorang Bos tidak menunggu keberuntungan, dia menciptakannya."_"""
+_\"Seorang Bos tidak menunggu keberuntungan, dia menciptakannya.\"_"""
     
     await update.message.reply_text(
         welcome_message, 
@@ -168,6 +171,51 @@ def format_cooldown(seconds: int) -> str:
         return "✅ Ready"
     
     return f"🔴 {format_time(seconds)}"
+
+
+def get_ready_time(seconds: int) -> str:
+    """Calculate exact time when cooldown will be ready."""
+    from datetime import datetime, timedelta
+    if seconds <= 0:
+        return ""
+    ready_at = datetime.now() + timedelta(seconds=seconds)
+    return ready_at.strftime("%H:%M")
+
+
+def get_bar_full_time(current: int, maximum: int, rate_per_min: float) -> str:
+    """
+    Calculate exact time when a bar will be full.
+    rate_per_min: how many points gained per minute
+    - Energy: 5 per 15 min = 0.333/min
+    - Nerve: 1 per 5 min = 0.2/min
+    """
+    from datetime import datetime, timedelta
+    if current >= maximum or rate_per_min <= 0:
+        return ""
+    needed = maximum - current
+    minutes_to_full = needed / rate_per_min
+    full_at = datetime.now() + timedelta(minutes=minutes_to_full)
+    return full_at.strftime("%H:%M")
+
+
+def format_bar_with_time(label: str, current: int, maximum: int, rate_per_min: float) -> str:
+    """Format bar line with optional full time."""
+    bar = create_bar(current, maximum)
+    base = f"<code>{label} [{bar}]</code> {current}/{maximum}"
+    
+    if current < maximum and rate_per_min > 0:
+        full_time = get_bar_full_time(current, maximum, rate_per_min)
+        return f"{base} (Full: {full_time})"
+    return base
+
+
+def format_cooldown_with_time(label: str, seconds: int) -> str:
+    """Format cooldown line with exact ready time."""
+    if seconds <= 0:
+        return f"<code>{label}:</code> ✅ Ready"
+    
+    ready_time = get_ready_time(seconds)
+    return f"<code>{label}:</code> 🔴 {format_time(seconds)} ({ready_time})"
 
 
 def get_crime_advice(nerve_max: int) -> dict:
@@ -298,36 +346,37 @@ async def format_dashboard_text() -> str:
     msg = (
         f"🕵️‍♂️ <b>THE CONSIGLIERE DASHBOARD</b>\n"
         f"👤 <b>{name}</b> [Lvl {level}] | 🕒 {now_str} WIB\n"
-        f"➖➖➖➖➖➖➖➖➖➖➖\n"
+        f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
         f"{status_icon} <b>Status:</b> {state} {alert}\n"
         f"⏳ <i>{desc}</i>\n"
         f"🕐 <i>{time_text}</i>\n"
-        f"➖➖➖➖➖➖➖➖➖➖➖\n"
-        f"⚡️ <code>Energy [{create_bar(e_cur, e_max)}]</code> {e_cur}/{e_max}\n"
-        f"🔥 <code>Nerve  [{create_bar(n_cur, n_max)}]</code> {n_cur}/{n_max}\n"
+        f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+        f"⚡️ {format_bar_with_time('Energy', e_cur, e_max, 5/15)}\n"
+        f"🔥 {format_bar_with_time('Nerve ', n_cur, n_max, 1/5)}\n"
         f"🙂 <code>Happy  [{create_bar(h_cur, h_max)}]</code> {h_cur}/{h_max}\n"
         f"❤️ <code>Life   [{create_bar(l_cur, l_max)}]</code> {l_cur}/{l_max}\n"
-        f"➖➖➖➖➖➖➖➖➖➖➖\n"
+        f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
         f"⚔️ <b>BATTLE STATS</b> (Total: {total_bs:,})\n"
         f"💪 Str: {strength:<6,} 🛡️ Def: {defense:,}\n"
-        f"👟 Spd: {speed:<6,} 🎯 Dex: {dexterity:,}\n\n"
+        f"👟 Spd: {speed:<6,} 🎯 Dex: {dexterity:,}\n"
+        f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
         f"💼 <b>WORK STATS</b> (Total: {manual+intel+endurance:,})\n"
         f"🧠 Int: {intel:<6,} 🏋️ End: {endurance:,}\n"
         f"🔨 Man: {manual:,}\n"
-        f"➖➖➖➖➖➖➖➖➖➖➖\n"
-        f"💵 <code>Cash: </code> ${fmt_num(cash)}\n"
-        f"💎 <code>Net:  </code> ${fmt_num(total_nw)}\n"
-        f"➖➖➖➖➖➖➖➖➖➖➖\n"
-        f"💊 <code>Drug:   </code> {format_cooldown(drug_cd)}\n"
-        f"💉 <code>Booster:</code> {format_cooldown(booster_cd)}\n"
-        f"🚑 <code>Medical:</code> {format_cooldown(medical_cd)}\n"
-        f"🎓 <code>Edu:    </code> {edu_status}\n"
-        f"➖➖➖➖➖➖➖➖➖➖➖\n"
+        f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+        f"💵 <code>Cash :</code> ${fmt_num(cash)}\n"
+        f"💎 <code>Net  :</code> ${fmt_num(total_nw)}\n"
+        f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+        f"💊 {format_cooldown_with_time('Drug   ', drug_cd)}\n"
+        f"💉 {format_cooldown_with_time('Booster', booster_cd)}\n"
+        f"🚑 {format_cooldown_with_time('Medical', medical_cd)}\n"
+        f"🎓 <code>Edu    :</code> {edu_status}\n"
+        f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
         f"💡 <b>CONSIGLIERE ADVICE:</b>\n"
         f"\"{advice['text']}\"\n"
         f"👉 <b>Recommended Crime:</b> {advice['crime']}\n"
         f"📍 <b>Target:</b> {advice['target']}\n"
-        f"➖➖➖➖➖➖➖➖➖➖➖\n"
+        f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
         f"🔄 <i>Auto-refresh 1 min</i>"
     )
     
@@ -402,19 +451,28 @@ async def update_dashboard_job(context):
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show help message."""
     help_text = """
-🆘 *THE CONSIGLIERE - COMMANDS*
+🆘 *THE CONSIGLIERE v3.0 - COMMANDS*
 
-/start - Mulai bot & kembali ke menu utama
-/stats - Cek status real-time (Energy/Nerve/Networth)
-/company - Cek status perusahaan & pekerjaan
-/help - Tampilkan pesan bantuan ini
+*Dashboard:*
+/start - Menu utama
+/stats - Live Dashboard Pro (auto-refresh)
+/company - Status pekerjaan/perusahaan
 
-*FITUR UTAMA:*
-💊 *Market:* Cari harga barang termurah.
-✈️ *Travel:* Cek status penerbangan & landing.
-💬 *Tanya AI:* Ngobrol strategi dengan AI Advisor.
+*Market & Inventory:*
+/price <item> - Cek harga termurah
+/stock - Lihat inventory
 
-_Gunakan menu tombol di bawah untuk navigasi cepat._
+*AI Advisor:*
+/crime - Saran crime dari AI
+💬 Tanya AI - Chat strategi langsung
+
+*Fitur Pro v3.0:*
+⚡ Estimasi waktu Full Energy/Nerve
+⚔️ Battle Stats & Work Stats
+� Consigliere Advice otomatis
+🔔 Notifikasi semua event
+
+_Gunakan tombol menu untuk navigasi cepat._
 """
     await update.message.reply_text(help_text, parse_mode="Markdown")
 

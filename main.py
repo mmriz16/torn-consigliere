@@ -1,5 +1,5 @@
 """
-The Consigliere v3.5 - Torn City Telegram Bot
+The Consigliere v4.0 - Torn City Telegram Bot
 Entry point for the application.
 """
 import logging
@@ -30,12 +30,6 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from config import TELEGRAM_BOT_TOKEN
 from handlers import (
     start_command, 
-    stats_command, 
-    help_command, 
-    price_command,
-    stock_command,
-    crime_command,
-    company_command,
     handle_message
 )
 from scheduler import create_scheduler, initialize_event_tracking
@@ -96,26 +90,34 @@ def main():
     
     # Register command handlers
     application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(CommandHandler("stats", stats_command))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("price", price_command))
-    application.add_handler(CommandHandler("stock", stock_command))
-    application.add_handler(CommandHandler("crime", crime_command))
-    application.add_handler(CommandHandler("company", company_command))
     
     # Callback query handler for inline keyboard buttons
     from telegram.ext import CallbackQueryHandler, ConversationHandler
     from handlers import (
         refresh_price_callback, 
+        handle_status_menu_callback,
+        baldr_refresh_callback,
+        property_callback,
         market_start, market_search, market_cancel, MARKET_SEARCH,
         ai_advisor_start, ai_advisor_chat, ai_advisor_cancel, AI_ADVISOR
     )
+    
+    # Price refresh callback
     application.add_handler(CallbackQueryHandler(refresh_price_callback, pattern=r"^refresh_price_\d+$"))
+    
+    # Baldr's targets refresh callback
+    application.add_handler(CallbackQueryHandler(baldr_refresh_callback, pattern=r"^baldr_refresh$"))
+    
+    # Property market callback (prop_*)
+    application.add_handler(CallbackQueryHandler(property_callback, pattern=r"^prop_"))
+    
+    # Status menu navigation callback (V2.0 multi-menu)
+    application.add_handler(CallbackQueryHandler(handle_status_menu_callback, pattern=r"^menu_"))
     
     # Market Conversation Handler (continuous item search)
     market_conv_handler = ConversationHandler(
         entry_points=[
-            MessageHandler(filters.Regex("^💰 Market$"), market_start)
+            MessageHandler(filters.Regex("^💰$"), market_start)
         ],
         states={
             MARKET_SEARCH: [
@@ -133,7 +135,7 @@ def main():
     # AI Advisor Conversation Handler (context-aware chat)
     ai_conv_handler = ConversationHandler(
         entry_points=[
-            MessageHandler(filters.Regex("^💬 Tanya AI$"), ai_advisor_start)
+            MessageHandler(filters.Regex("^💬$"), ai_advisor_start)
         ],
         states={
             AI_ADVISOR: [

@@ -656,3 +656,172 @@ def get_inactive_employees(threshold_days: int = 3) -> list:
     
     return inactive
 
+
+# =============================================================================
+# MULTI-MENU NAVIGATION API FUNCTIONS (V2.0)
+# =============================================================================
+
+def get_menu_data() -> dict:
+    """
+    Get all data needed for multi-menu navigation in one API call (batching).
+    This optimizes API usage by fetching all selections at once.
+    
+    Returns:
+        dict: Comprehensive data for all menus including:
+            - basic, bars, cooldowns (General Stats)
+            - money, networth (Financial)
+            - battlestats, gym (GYM Stats)
+            - workstats, profile (Job & Work)
+            - properties (Property)
+            - crimes (Criminal)
+            - events, notifications (Events)
+    """
+    selections = (
+        "basic,bars,cooldowns,money,networth,icons,"
+        "battlestats,workstats,profile,properties,"
+        "criminalrecord,events,notifications,equipment,jobpoints,gym"
+    )
+    return fetch_user_data(selections)
+
+
+def get_property_data() -> dict:
+    """
+    Get property data for Happy Jump planning.
+    
+    Returns:
+        dict: {
+            "properties": list of properties with name and happy bonus,
+            "max_happy": int (maximum happy capacity from property)
+        }
+    """
+    data = fetch_user_data("properties")
+    properties_raw = data.get("properties", {})
+    
+    properties = []
+    max_happy = 0
+    
+    if isinstance(properties_raw, dict):
+        for prop_id, prop_data in properties_raw.items():
+            if isinstance(prop_data, dict):
+                name = prop_data.get("property_type", "Unknown")
+                happy = prop_data.get("happy", 0)
+                
+                # Track max happy from property upgrades
+                if happy > max_happy:
+                    max_happy = happy
+                
+                properties.append({
+                    "id": prop_id,
+                    "name": name,
+                    "happy": happy,
+                    "upkeep": prop_data.get("upkeep", 0),
+                    "staff": prop_data.get("staff", [])
+                })
+    
+    return {
+        "properties": properties,
+        "max_happy": max_happy
+    }
+
+
+def get_equipment_data() -> dict:
+    """
+    Get equipped weapons and armor data.
+    
+    Note: Uses 'profile' selection which includes equipped items in v1 API.
+    
+    Returns:
+        dict: {
+            "primary_weapon": str,
+            "secondary_weapon": str,
+            "melee_weapon": str,
+            "temp_weapon": str,
+            "armor": dict with head, body, legs, feet, etc.
+        }
+    """
+    data = fetch_user_data("profile")
+    
+    # Extract equipped items from profile data
+    equipped = data.get("equipped", {})
+    
+    return {
+        "primary_weapon": equipped.get("primary", "None"),
+        "secondary_weapon": equipped.get("secondary", "None"),
+        "melee_weapon": equipped.get("melee", "None"),
+        "temp_weapon": equipped.get("temporary", "None"),
+        "armor": {
+            "helmet": equipped.get("helmet", "None"),
+            "body": equipped.get("body_armor", "None"),
+            "pants": equipped.get("pants", "None"),
+            "boots": equipped.get("boots", "None"),
+            "gloves": equipped.get("gloves", "None")
+        }
+    }
+
+
+def get_criminal_data() -> dict:
+    """
+    Get criminal activity data for NNB optimization.
+    
+    Returns:
+        dict: {
+            "nerve_current": int,
+            "nerve_max": int,
+            "crimes": dict with crime statistics
+        }
+    """
+    data = fetch_user_data("basic,bars,crimes")
+    
+    nerve = data.get("nerve", {})
+    crimes = data.get("criminalrecord", {})
+    
+    return {
+        "nerve_current": nerve.get("current", 0),
+        "nerve_max": nerve.get("maximum", 0),
+        "nerve_fulltime": nerve.get("fulltime", 0),
+        "crimes": crimes
+    }
+
+
+def get_events_data(limit: int = 5) -> list:
+    """
+    Get recent events for Events menu.
+    
+    Args:
+        limit: Maximum number of events to return (default 5)
+    
+    Returns:
+        list: List of recent events sorted by timestamp (newest first)
+    """
+    data = fetch_user_data("events,notifications")
+    events_raw = data.get("events", {})
+    notifications_raw = data.get("notifications", {})
+    
+    events_list = []
+    
+    # Parse events
+    if isinstance(events_raw, dict):
+        for event_id, event_data in events_raw.items():
+            if isinstance(event_data, dict):
+                events_list.append({
+                    "id": str(event_id),
+                    "type": "event",
+                    "text": event_data.get("event", ""),
+                    "timestamp": event_data.get("timestamp", 0)
+                })
+    
+    # Parse notifications
+    if isinstance(notifications_raw, dict):
+        for notif_id, notif_data in notifications_raw.items():
+            if isinstance(notif_data, dict):
+                events_list.append({
+                    "id": str(notif_id),
+                    "type": "notification",
+                    "text": notif_data.get("text", ""),
+                    "timestamp": notif_data.get("timestamp", 0)
+                })
+    
+    # Sort by timestamp descending and limit
+    events_list.sort(key=lambda x: x["timestamp"], reverse=True)
+    return events_list[:limit]
+

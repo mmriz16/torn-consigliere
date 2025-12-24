@@ -1,0 +1,357 @@
+{
+    "Attacking": [
+        {
+            "name": "Kill Streaker 1",
+            "target": 10,
+            "api_key": "bestkillstreak",
+            "description": "Achieve a best kill streak of 10"
+        },
+        {
+            "name": "Kill Streaker 2",
+            "target": 25,
+            "api_key": "bestkillstreak",
+            "description": "Achieve a best kill streak of 25"
+        },
+        {
+            "name": "Kill Streaker 3",
+            "target": 50,
+            "api_key": "bestkillstreak",
+            "description": "Achieve a best kill streak of 50"
+        },
+        {
+            "name": "Kill Streaker 4",
+            "target": 100,
+            "api_key": "bestkillstreak",
+            "description": "Achieve a best kill streak of 100"
+        },
+        {
+            "name": "Kill Streaker 5",
+            "target": 250,
+            "api_key": "bestkillstreak",
+            "description": "Achieve a best kill streak of 250"
+        },
+        {
+            "name": "Kill Streaker 6",
+            "target": 500,
+            "api_key": "bestkillstreak",
+            "description": "Achieve a best kill streak of 500"
+        },
+        {
+            "name": "Desert Camo",
+            "target": 20,
+            "api_key": "attackswon",
+            "description": "Win 20 attacks"
+        },
+        {
+            "name": "Woodland Camo",
+            "target": 5,
+            "api_key": "attackswon",
+            "description": "Win 5 attacks"
+        },
+        {
+            "name": "007",
+            "target": 1000,
+            "api_key": "attackswon",
+            "description": "1,000 attacks and 1,000 defends",
+            "multi": true
+        }
+    ],
+    "Items": [
+        {
+            "name": "Diabetic",
+            "target": 500,
+            "api_key": "candyused",
+            "description": "Eat 500 bags of candy"
+        },
+        {
+            "name": "Candy Gobbler",
+            "target": 100,
+            "api_key": "candyused",
+            "description": "Eat 100 bags of candy"
+        },
+        {
+            "name": "Sweet Tooth",
+            "target": 50,
+            "api_key": "candyused",
+            "description": "Eat 50 bags of candy"
+        },
+        {
+            "name": "Alcoholic",
+            "target": 500,
+            "api_key": "alcoholused",
+            "description": "Drink 500 bottles of alcohol"
+        },
+        {
+            "name": "Heavy Drinker",
+            "target": 250,
+            "api_key": "alcoholused",
+            "description": "Drink 250 bottles of alcohol"
+        },
+        {
+            "name": "Social Drinker",
+            "target": 100,
+            "api_key": "alcoholused",
+            "description": "Drink 100 bottles of alcohol"
+        },
+        {
+            "name": "Energy Junkie",
+            "target": 500,
+            "api_key": "energydrinkused",
+            "description": "Consume 500 energy drinks"
+        },
+        {
+            "name": "Caffeine Addict",
+            "target": 250,
+            "api_key": "energydrinkused",
+            "description": "Consume 250 energy drinks"
+        },
+        {
+            "name": "Energy User",
+            "target": 100,
+            "api_key": "energydrinkused",
+            "description": "Consume 100 energy drinks"
+        },
+        {
+            "name": "Booster Beast",
+            "target": 500,
+            "api_key": "boostersused",
+            "description": "Use 500 boosters"
+        },
+        {
+            "name": "Booster Fan",
+            "target": 250,
+            "api_key": "boostersused",
+            "description": "Use 250 boosters"
+        },
+        {
+            "name": "Booster User",
+            "target": 100,
+            "api_key": "boostersused",
+            "description": "Use 100 boosters"
+        }
+    ],
+    "Crimes": [
+        {
+            "name": "Society's Worst",
+            "target": 10000,
+            "api_key": "criminaloffenses",
+            "description": "Commit 10,000 criminal offenses"
+        },
+        {
+            "name": "Hardened Criminal",
+            "target": 5000,
+            "api_key": "criminaloffenses",
+            "description": "Commit 5,000 criminal offenses"
+        },
+        {
+            "name": "Career Criminal",
+            "target": 2500,
+            "api_key": "criminaloffenses",
+            "description": "Commit 2,500 criminal offenses"
+        },
+        {
+            "name": "Professional",
+            "target": 1000,
+            "api_key": "criminaloffenses",
+            "description": "Commit 1,000 criminal offenses"
+        },
+        {
+            "name": "Bug",
+            "target": 1000,
+            "api_key": "cybercrime",
+            "description": "Achieve 1,000 computer crimes"
+        },
+        {
+            "name": "Hacker",
+            "target": 500,
+            "api_key": "cybercrime",
+            "description": "Achieve 500 computer crimes"
+        }
+    ],
+    "Travel": [
+        {
+            "name": "Mule",
+            "target": 100,
+            "api_key": "itemsboughtabroad",
+            "description": "Import 100 items from abroad"
+        },
+        {
+            "name": "Globetrotter",
+            "target": 500,
+            "api_key": "traveltimes",
+            "description": "Travel abroad 500 times"
+        },
+        {
+            "name": "Frequent Flyer",
+            "target": 250,
+            "api_key": "traveltimes",
+            "description": "Travel abroad 250 times"
+        },
+        {
+            "name": "Traveler",
+            "target": 100,
+            "api_key": "traveltimes",
+            "description": "Travel abroad 100 times"
+        },
+        {
+            "name": "Tourist",
+            "target": 50,
+            "api_key": "traveltimes",
+            "description": "Travel abroad 50 times"
+        },
+        {
+            "name": "Vacationer",
+            "target": 25,
+            "api_key": "traveltimes",
+            "description": "Travel abroad 25 times"
+        }
+    ],
+    "Drugs": [
+        {
+            "name": "Free Energy",
+            "target": 50,
+            "api_key": "xantaken",
+            "description": "Use 50 Xanax"
+        },
+        {
+            "name": "Xanax User",
+            "target": 100,
+            "api_key": "xantaken",
+            "description": "Use 100 Xanax"
+        },
+        {
+            "name": "Xanax Addict",
+            "target": 250,
+            "api_key": "xantaken",
+            "description": "Use 250 Xanax"
+        },
+        {
+            "name": "Acid Dream",
+            "target": 50,
+            "api_key": "lsdtaken",
+            "description": "Use 50 LSD"
+        },
+        {
+            "name": "LSD User",
+            "target": 100,
+            "api_key": "lsdtaken",
+            "description": "Use 100 LSD"
+        },
+        {
+            "name": "Drug Addict",
+            "target": 500,
+            "api_key": "drugsused",
+            "description": "Use 500 drugs"
+        }
+    ],
+    "Hospital": [
+        {
+            "name": "Medic",
+            "target": 250,
+            "api_key": "medicalitemsused",
+            "description": "Use 250 medical items"
+        },
+        {
+            "name": "Healer",
+            "target": 100,
+            "api_key": "medicalitemsused",
+            "description": "Use 100 medical items"
+        },
+        {
+            "name": "First Aider",
+            "target": 50,
+            "api_key": "medicalitemsused",
+            "description": "Use 50 medical items"
+        },
+        {
+            "name": "Anaemic",
+            "target": 1000,
+            "api_key": "bloodwithdrawn",
+            "description": "Fill 1,000 empty blood bags"
+        },
+        {
+            "name": "Reviver",
+            "target": 250,
+            "api_key": "revives",
+            "description": "Revive 250 players"
+        },
+        {
+            "name": "CPR Expert",
+            "target": 100,
+            "api_key": "revives",
+            "description": "Revive 100 players"
+        },
+        {
+            "name": "Life Saver",
+            "target": 50,
+            "api_key": "revives",
+            "description": "Revive 50 players"
+        }
+    ],
+    "Commitment": [
+        {
+            "name": "Veteran",
+            "target": 365,
+            "api_key": "daysold",
+            "description": "Celebrate 1 year in Torn"
+        },
+        {
+            "name": "Long Timer",
+            "target": 730,
+            "api_key": "daysold",
+            "description": "Celebrate 2 years in Torn"
+        },
+        {
+            "name": "Dedicated",
+            "target": 1095,
+            "api_key": "daysold",
+            "description": "Celebrate 3 years in Torn"
+        },
+        {
+            "name": "Devoted",
+            "target": 1825,
+            "api_key": "daysold",
+            "description": "Celebrate 5 years in Torn"
+        }
+    ],
+    "Level": [
+        {
+            "name": "Another Brick in the Wall",
+            "target": 10,
+            "api_key": "level",
+            "description": "Reach level 10"
+        },
+        {
+            "name": "Lean",
+            "target": 100,
+            "api_key": "totalstats",
+            "description": "Attain 100 total stats"
+        },
+        {
+            "name": "Fit II",
+            "target": 1000,
+            "api_key": "totalstats",
+            "description": "Attain 1,000 total stats"
+        }
+    ],
+    "Money": [
+        {
+            "name": "Pocket Money",
+            "target": 1,
+            "api_key": "cityfinds",
+            "description": "Make an investment in the city bank"
+        },
+        {
+            "name": "Rich",
+            "target": 10000000,
+            "api_key": "networth",
+            "description": "Achieve $10,000,000 networth"
+        },
+        {
+            "name": "Millionaire",
+            "target": 100000000,
+            "api_key": "networth",
+            "description": "Achieve $100,000,000 networth"
+        }
+    ]
+}

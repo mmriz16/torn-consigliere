@@ -366,7 +366,12 @@ async def format_dashboard_text() -> str:
         status_icon = "✈️"
         alert = "🛬"
         travel = data.get("travel", {})
-        time_text = f"{format_time(travel.get('time_left', 0))} to land"
+        travel_time_left = travel.get('time_left', 0)
+        if travel_time_left > 0:
+            exact_time = format_exact_time(travel_time_left)
+            time_text = f"{format_time(travel_time_left)} to land ({exact_time})"
+        else:
+            time_text = "Landing now!"
     
     # Get bars (including fulltime from API)
     energy = data.get("energy", {})
@@ -499,7 +504,12 @@ def format_general_stats(data: dict) -> str:
         status_icon = "✈️"
         alert = "🛬"
         travel = data.get("travel", {})
-        time_text = f"{format_time(travel.get('time_left', 0))} to land"
+        travel_time_left = travel.get('time_left', 0)
+        if travel_time_left > 0:
+            exact_time = format_exact_time(travel_time_left)
+            time_text = f"{format_time(travel_time_left)} to land ({exact_time})"
+        else:
+            time_text = "Landing now!"
     
     # Get bars (including fulltime from API)
     energy = data.get("energy", {})
@@ -959,36 +969,24 @@ def format_gear_stats(data: dict) -> str:
 
 
 def format_criminal_stats(data: dict) -> str:
-    """Format Criminal menu - Criminal Record with XP Tracker for Quick Leveling."""
+    """Format Criminal menu - Criminal Record with EA Tracker and Safety Status."""
+    from crime_advisor import (
+        calculate_ea, get_ea_level, get_all_crime_safety,
+        format_progress_bar, get_consigliere_tip
+    )
     
     name = html.escape(data.get("name", "Unknown"))
     level = data.get("level", 1)
     now_str = get_wib_now().strftime("%H:%M")
     
-    # XP Progress Tracker
-    # Torn XP requirements per level (approximate)
-    XP_PER_LEVEL = {
-        1: 0, 2: 250, 3: 500, 4: 1000, 5: 2000,
-        6: 4000, 7: 8000, 8: 16000, 9: 32000, 10: 50000,
-        11: 75000, 12: 100000, 13: 150000, 14: 200000, 15: 300000,
-        16: 400000, 17: 500000, 18: 625000, 19: 750000, 20: 1000000
-    }
-    
-    current_xp = XP_PER_LEVEL.get(level, 0)
-    next_level_xp = XP_PER_LEVEL.get(level + 1, current_xp + 50000)
-    level_15_xp = XP_PER_LEVEL.get(15, 300000)
-    
-    # Calculate progress (using crimes as proxy since we don't have exact XP)
-    if level < 15:
-        levels_to_15 = 15 - level
-        xp_status = f"🎯 Target: <b>Level 15</b> ({levels_to_15} level lagi untuk Travel!)"
-    else:
-        xp_status = "✅ <b>Travel sudah terbuka!</b> Bos sudah Level 15+"
-    
     # Get criminal record from API
     criminalrecord = data.get("criminalrecord", {})
     
-    # Crime categories with their counts
+    # Calculate EA
+    ea = calculate_ea(criminalrecord)
+    ea_level = get_ea_level(ea)
+    
+    # Crime category counts
     selling_illegal = criminalrecord.get("selling_illegal_products", 0)
     theft = criminalrecord.get("theft", 0)
     auto_theft = criminalrecord.get("auto_theft", 0)
@@ -999,17 +997,35 @@ def format_criminal_stats(data: dict) -> str:
     other = criminalrecord.get("other", 0)
     total = criminalrecord.get("total", 0)
     
-    # If total is 0, calculate it
     if total == 0:
         total = selling_illegal + theft + auto_theft + drug_deals + computer_crimes + murder + fraud_crimes + other
     
+    # EA Progress bar
+    if ea_level["next_threshold"]:
+        progress_pct = ((ea - ea_level["threshold"]) / (ea_level["next_threshold"] - ea_level["threshold"])) * 100
+        progress_bar = format_progress_bar(ea, ea_level["next_threshold"])
+        progress_text = f"[{progress_bar}] {progress_pct:.0f}%\n📍 Target: {ea_level['next_threshold']} EA ({ea_level['next_name']})"
+    else:
+        progress_bar = format_progress_bar(100, 100)
+        progress_text = f"[{progress_bar}] MAX LEVEL!"
+    
+    # Crime safety status (top 4)
+    safety_list = get_all_crime_safety(ea)[:6]
+    safety_text = ""
+    for crime in safety_list:
+        safety_text += f"{crime['icon']} {crime['name'][:20]} - <i>{crime['message']}</i>\n"
+    
+    # Consigliere tip
+    tip = get_consigliere_tip(ea, ea_level)
+    
     msg = (
-        f"🔫 <b>QUICK LEVELING HUB</b>\n"
+        f"🔪 <b>CRIMINAL ADVISOR</b>\n"
         f"👤 <b>{name}</b> [Lvl {level}] | 🕒 {now_str} WIB\n"
-        f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
-        f"📈 <b>XP PROGRESS:</b>\n"
-        f"{xp_status}\n"
-        f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+        f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+        f"⚡ <b>EFFECTIVE ARSONS:</b> {ea:.1f} EA\n"
+        f"{ea_level['icon']} <b>Level:</b> {ea_level['name']}\n"
+        f"{progress_text}\n"
+        f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
         f"📋 <b>CRIMINAL RECORD:</b>\n"
         f"💊 <code>Illegal products :</code> {selling_illegal:,}\n"
         f"🔓 <code>Theft            :</code> {theft:,}\n"
@@ -1019,10 +1035,12 @@ def format_criminal_stats(data: dict) -> str:
         f"🔪 <code>Murder           :</code> {murder:,}\n"
         f"💳 <code>Fraud crimes     :</code> {fraud_crimes:,}\n"
         f"📦 <code>Other            :</code> {other:,}\n"
-        f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
-        f"📊 <b>TOTAL CRIMES:</b> {total:,}\n"
-        f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
-        f"💡 <i>Serang target lemah untuk naik level cepat!</i>"
+        f"📊 <b>TOTAL:</b> {total:,}\n"
+        f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+        f"🎯 <b>CRIME SAFETY STATUS:</b>\n"
+        f"{safety_text}"
+        f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+        f"💡 <i>{tip}</i>"
     )
     
     return msg
@@ -1198,39 +1216,41 @@ async def baldr_refresh_callback(update: Update, context: ContextTypes.DEFAULT_T
                         
                         if state == 'Okay':
                             available_targets.append(target)
-                            if len(available_targets) >= 5:
+                            if len(available_targets) >= 6:
                                 break
                     except:
                         continue
             
-            # Select targets: highest level first, then 2 random
+            # Select targets: all sorted by level (highest first)
             if available_targets:
                 # Sort by level descending to get highest level first
                 sorted_by_level = sorted(available_targets, key=lambda x: parse_int(x.get('lvl', 0)), reverse=True)
-                highest_level = sorted_by_level[0]
-                
-                # Get 2 more random targets (excluding highest level)
-                remaining = [t for t in available_targets if t != highest_level]
-                random_picks = random.sample(remaining, min(2, len(remaining))) if remaining else []
-                
-                selected = [highest_level] + random_picks
+                # Take top 6 (or all if less than 6)
+                selected = sorted_by_level[:6]
             else:
                 selected = []
             
             if selected:
-                # Create inline buttons
-                buttons = []
-                for target in selected:
-                    t_name = target.get('name', 'Unknown')[:10]
+                # Create inline buttons - show only level, layout 3-3-1
+                row1 = []
+                row2 = []
+                
+                for i, target in enumerate(selected):
                     t_lvl = target.get('lvl', '?')
                     t_id = target.get('id', '')
                     attack_url = f"https://www.torn.com/loader2.php?sid=getInAttack&user2ID={t_id}"
-                    buttons.append([InlineKeyboardButton(
-                        f"⚔️ {t_name} [Lvl {t_lvl}]", 
-                        url=attack_url
-                    )])
+                    btn = InlineKeyboardButton(f"⚔️ Lvl {t_lvl}", url=attack_url)
+                    
+                    if i < 3:
+                        row1.append(btn)
+                    else:
+                        row2.append(btn)
                 
+                buttons = [row1]
+                if row2:
+                    buttons.append(row2)
                 buttons.append([InlineKeyboardButton("🔄 Refresh Targets", callback_data="baldr_refresh")])
+                
                 inline_kb = InlineKeyboardMarkup(buttons)
                 
                 # Update message with new targets
@@ -1599,26 +1619,54 @@ async def stats_hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # === INBOX ===
     if callback_data == "stats_inbox":
         try:
-            # Fetch messages from API
+            # Fetch messages from API v2
             url = f"https://api.torn.com/v2/user/messages?key={TORN_API_KEY}"
             resp = requests.get(url, timeout=10)
             messages_data = resp.json().get("messages", [])
             
-            # Get first 5 messages
             inbox_text = ""
+            unread_count = 0
+            
             if messages_data:
                 for i, msg in enumerate(messages_data[:5], 1):
-                    sender = msg.get("sender", {}).get("name", "Unknown")
-                    subject = msg.get("title", "No subject")[:25]
-                    if len(msg.get("title", "")) > 25:
-                        subject += "..."
-                    read_status = "📬" if msg.get("read", False) else "📩"
-                    inbox_text += f"{read_status} <b>{sender}</b>\n   └ {subject}\n"
+                    sender_name = msg.get("sender", {}).get("name", "Unknown")
+                    topic = msg.get("topic", "")
+                    read_status = msg.get("read", False)
+                    timestamp = msg.get("timestamp", 0)
+                    
+                    # Count unread
+                    if not read_status:
+                        unread_count += 1
+                    
+                    # Format timestamp to WIB
+                    from datetime import datetime, timezone, timedelta
+                    wib = timezone(timedelta(hours=7))
+                    msg_time = datetime.fromtimestamp(timestamp, tz=wib).strftime("%H:%M")
+                    
+                    # Smart subject: if No Subject or empty, show placeholder
+                    if not topic or topic.lower() == "no subject":
+                        subject_display = "<i>Pesan tanpa subjek</i>"
+                    else:
+                        subject_display = topic[:35] + "..." if len(topic) > 35 else topic
+                    
+                    # Read/unread icon - more visible for unread
+                    if read_status:
+                        read_icon = "📖"  # Read
+                    else:
+                        read_icon = "🔴📩"  # Unread with red dot
+                    
+                    inbox_text += (
+                        f"{read_icon} <b>{sender_name}</b> | {msg_time} WIB\n"
+                        f"   └ {subject_display}\n"
+                    )
             else:
                 inbox_text = "📭 <i>Inbox kosong</i>\n"
             
+            # Header with unread count
+            unread_badge = f" ({unread_count} belum dibaca)" if unread_count > 0 else ""
+            
             msg = (
-                f"📩 <b>INBOX</b>\n"
+                f"📩 <b>INBOX TERBARU</b>{unread_badge}\n"
                 f"🕒 {now_str} WIB\n"
                 f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
                 f"{inbox_text}"
@@ -1678,43 +1726,62 @@ async def stats_hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return
     
-    # === AWARDS ===
+    # === AWARDS / MERIT HUNTER ===
     if callback_data == "stats_awards":
         try:
-            data = fetch_user_data("medals,honors")
-            medals = data.get("medals_awarded", [])
-            honors = data.get("honors_awarded", [])
+            from awards_analyzer import get_top_targets, format_progress_bar
+            
+            # Fetch personalstats for progress calculation
+            ps_data = fetch_user_data("personalstats,medals,honors,profile")
+            personal_stats = ps_data.get("personalstats", {})
+            medals = ps_data.get("medals_awarded", [])
+            honors = ps_data.get("honors_awarded", [])
             
             total_medals = len(medals)
             total_honors = len(honors)
             
-            # Get recent awards (last 5)
-            recent_text = ""
-            if medals:
-                for m in medals[-3:]:
-                    recent_text += f"🏅 Medal #{m}\n"
-            if honors:
-                for h in honors[-3:]:
-                    recent_text += f"🎖️ Honor #{h}\n"
+            # Get top 5 closest targets
+            targets = get_top_targets(personal_stats, ps_data, limit=5)
             
-            if not recent_text:
-                recent_text = "📭 <i>No recent awards</i>\n"
+            targets_text = ""
+            if targets:
+                for i, t in enumerate(targets, 1):
+                    pct = t["progress_pct"]
+                    bar = format_progress_bar(pct)
+                    remaining = t["remaining"]
+                    description = t.get("description", "Complete this award")
+                    name = t["name"]
+                    category = t.get("category", "Awards")
+                    
+                    targets_text += (
+                        f"{i}. <b>{name}</b> 📍 <i>{category}</i>\n"
+                        f"   [{bar}] {pct:.0f}%\n"
+                        f"   📝 {description} ({remaining:,} lagi)\n\n"
+                    )
+                
+                # Top tip
+                top = targets[0]
+                tip = f"🎯 <b>Prioritas:</b> {top.get('description', 'Selesaikan target ini')} ({top['remaining']:,} lagi)"
+            else:
+                targets_text = "🎉 Semua medali sudah selesai!\n"
+                tip = "💡 Kamu sudah legend!"
             
             msg = (
-                f"🏅 <b>AWARDS</b>\n"
+                f"🏅 <b>MERIT HUNTER</b>\n"
                 f"🕒 {now_str} WIB\n"
                 f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
-                f"🏅 <b>Medals:</b> {total_medals}\n"
-                f"🎖️ <b>Honors:</b> {total_honors}\n"
+                f"🏅 Medals: {total_medals} | 🎖️ Honors: {total_honors}\n"
                 f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
-                f"<b>Recent:</b>\n"
-                f"{recent_text}"
+                f"<b>🎯 TARGET TERDEKAT:</b>\n\n"
+                f"{targets_text}"
+                f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+                f"{tip}\n"
                 f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
                 f"🔗 <a href='https://www.torn.com/awards.php'>View All Awards</a>"
             )
         except Exception as e:
             logger.error(f"Awards error: {e}")
-            msg = f"🏅 <b>AWARDS</b>\n\n❌ Gagal memuat awards."
+            msg = f"🏅 <b>MERIT HUNTER</b>\n\n❌ Gagal memuat awards.\n<i>{str(e)[:50]}</i>"
         
         await query.edit_message_text(
             msg,
@@ -1804,12 +1871,13 @@ async def handle_status_menu_button(update: Update, context: ContextTypes.DEFAUL
         return
     
     if button_text == "✈️":  # Travel - Level 15 gatekeeper + profit calculator
-        from travel_data import COUNTRIES, get_top_profitable_items, get_carry_capacity
+        from travel_data import COUNTRIES, get_top_profitable_items, get_carry_capacity, TRAVEL_ITEMS
         import random
         
         level = data.get("level", 1)
         name = html.escape(data.get("name", "Bos"))
         now_str = get_wib_now().strftime("%H:%M")
+        user_cash = data.get("money_onhand", 0)
         
         if level < 15:
             # === LEVEL 15 GATEKEEPER ===
@@ -1843,7 +1911,7 @@ async def handle_status_menu_button(update: Update, context: ContextTypes.DEFAUL
         else:
             # === LEVEL 15+ - SHOW TRAVEL INFO ===
             carry_cap = get_carry_capacity(level)
-            top_items = get_top_profitable_items(top_n=5)
+            top_items = get_top_profitable_items(top_n=8)
             
             # Group by country for top 3 destinations
             seen_countries = set()
@@ -1851,33 +1919,53 @@ async def handle_status_menu_button(update: Update, context: ContextTypes.DEFAUL
             for item in top_items:
                 if item["country_key"] not in seen_countries:
                     seen_countries.add(item["country_key"])
+                    modal_tunai = item["buy_price"] * carry_cap
                     potential_profit = item["profit"] * carry_cap
+                    can_afford = user_cash >= modal_tunai
+                    
                     top_destinations.append({
                         **item,
-                        "potential_profit": potential_profit
+                        "potential_profit": potential_profit,
+                        "modal_tunai": modal_tunai,
+                        "can_afford": can_afford
                     })
                 if len(top_destinations) >= 3:
                     break
             
             dest_text = ""
             for i, dest in enumerate(top_destinations, 1):
+                # Anti-Zonk warning
+                afford_icon = "✅" if dest["can_afford"] else "⚠️"
+                afford_text = "" if dest["can_afford"] else " <b>(DANA KURANG!)</b>"
+                
+                # Convert minutes to hours:minutes format
+                one_way = dest['flight_min']
+                round_trip = one_way * 2
+                ow_h, ow_m = divmod(one_way, 60)
+                rt_h, rt_m = divmod(round_trip, 60)
+                ow_str = f"{ow_h}h {ow_m}m" if ow_h > 0 else f"{ow_m}m"
+                rt_str = f"{rt_h}h {rt_m}m" if rt_h > 0 else f"{rt_m}m"
+                
                 dest_text += (
                     f"{i}. {dest['flag']} <b>{dest['country_name']}</b>\n"
                     f"   📦 {dest['name']}\n"
-                    f"   💰 Profit: <code>${dest['potential_profit']:,}</code> ({carry_cap} items)\n"
-                    f"   ⏱️ Flight: {dest['flight_min']} min\n\n"
+                    f"   💵 Modal: <code>${dest['modal_tunai']:,}</code> {afford_icon}{afford_text}\n"
+                    f"   💰 Profit: <code>${dest['potential_profit']:,}</code>\n"
+                    f"   ⏱️ Flight: {ow_str} (PP: {rt_str})\n\n"
                 )
             
             msg = (
                 f"✈️ <b>TRAVEL INTELLIGENCE</b>\n"
                 f"👤 <b>{name}</b> [Lvl {level}] | 🕒 {now_str} WIB\n"
-                f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+                f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
                 f"📦 <b>CARRY CAPACITY:</b> {carry_cap} items\n"
-                f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+                f"💵 <b>CASH ON HAND:</b> ${user_cash:,}\n"
+                f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
                 f"🏆 <b>TOP 3 DESTINATIONS:</b>\n\n"
                 f"{dest_text}"
-                f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
-                f"💡 <i>Profit = (Market - Buy) × Capacity</i>"
+                f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+                f"💡 <i>Profit = (Market×0.95 - Buy) × {carry_cap}</i>\n"
+                f"📊 <i>Sudah termasuk pajak 5%</i>"
             )
         
         await update.message.reply_text(
@@ -1931,41 +2019,40 @@ async def handle_status_menu_button(update: Update, context: ContextTypes.DEFAUL
                             
                             if state == 'Okay':
                                 available_targets.append(target)
-                                if len(available_targets) >= 5:  # Get up to 5 available targets
+                                if len(available_targets) >= 6:  # Get up to 6 available targets
                                     break
                         except:
                             continue
                 
-                # Select targets: highest level first, then 2 random
+                # Select targets: all sorted by level (highest first)
                 if available_targets:
-                    # Sort by level descending to get highest level first
                     sorted_by_level = sorted(available_targets, key=lambda x: parse_int(x.get('lvl', 0)), reverse=True)
-                    highest_level = sorted_by_level[0]
-                    
-                    # Get 2 more random targets (excluding highest level)
-                    remaining = [t for t in available_targets if t != highest_level]
-                    random_picks = random.sample(remaining, min(2, len(remaining))) if remaining else []
-                    
-                    selected = [highest_level] + random_picks
+                    selected = sorted_by_level[:6]
                 else:
                     selected = []
                 
-                # Create inline buttons for attack
-                buttons = []
-                for target in selected:
-                    t_name = target.get('name', 'Unknown')[:10]
-                    t_lvl = target.get('lvl', '?')
-                    t_id = target.get('id', '')
-                    attack_url = f"https://www.torn.com/loader2.php?sid=getInAttack&user2ID={t_id}"
-                    buttons.append([InlineKeyboardButton(
-                        f"⚔️ {t_name} [Lvl {t_lvl}]", 
-                        url=attack_url
-                    )])
-                
-                # Add refresh button
-                buttons.append([InlineKeyboardButton("🔄 Refresh Targets", callback_data="baldr_refresh")])
-                
-                inline_kb = InlineKeyboardMarkup(buttons)
+                # Create inline buttons - show only level, layout 3-3-1
+                if selected:
+                    row1 = []
+                    row2 = []
+                    
+                    for i, target in enumerate(selected):
+                        t_lvl = target.get('lvl', '?')
+                        t_id = target.get('id', '')
+                        attack_url = f"https://www.torn.com/loader2.php?sid=getInAttack&user2ID={t_id}"
+                        btn = InlineKeyboardButton(f"⚔️ Lvl {t_lvl}", url=attack_url)
+                        
+                        if i < 3:
+                            row1.append(btn)
+                        else:
+                            row2.append(btn)
+                    
+                    buttons = [row1]
+                    if row2:
+                        buttons.append(row2)
+                    buttons.append([InlineKeyboardButton("🔄 Refresh Targets", callback_data="baldr_refresh")])
+                    
+                    inline_kb = InlineKeyboardMarkup(buttons)
                 
                 # Add Baldr's section to message
                 msg += "\n\n🎯 <b>BALDR'S TARGETS:</b> (Klik untuk serang)"

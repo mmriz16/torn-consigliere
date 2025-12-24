@@ -162,10 +162,12 @@ def get_top_profitable_items(market_prices: dict = None, top_n: int = 5) -> list
     """
     Get top N most profitable items based on profit margin.
     Uses estimated market prices if real prices not provided.
+    Applies 5% market tax to sale price.
     
     Returns:
         list: [{item_id, name, country, profit, ...}, ...]
     """
+    MARKET_TAX = 0.05  # 5% tax on item market sales
     results = []
     
     for item_id, item in TRAVEL_ITEMS.items():
@@ -175,7 +177,9 @@ def get_top_profitable_items(market_prices: dict = None, top_n: int = 5) -> list
         else:
             market = item.get("market_est", 0)
         
-        profit = market - item["buy"]
+        # Calculate net profit after 5% market tax
+        net_market = int(market * (1 - MARKET_TAX))  # Market price after tax
+        profit = net_market - item["buy"]
         country_data = COUNTRIES.get(item["country"], {})
         
         results.append({
@@ -187,6 +191,7 @@ def get_top_profitable_items(market_prices: dict = None, top_n: int = 5) -> list
             "flight_min": country_data.get("flight_min", 0),
             "buy_price": item["buy"],
             "market_price": market,
+            "net_market": net_market,
             "profit": profit,
             "profit_ratio": profit / item["buy"] if item["buy"] > 0 else 0
         })

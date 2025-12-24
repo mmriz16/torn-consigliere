@@ -665,6 +665,7 @@ def get_menu_data() -> dict:
     """
     Get all data needed for multi-menu navigation in one API call (batching).
     This optimizes API usage by fetching all selections at once.
+    Also fetches bars from API v2 for accurate fulltime data.
     
     Returns:
         dict: Comprehensive data for all menus including:
@@ -676,12 +677,40 @@ def get_menu_data() -> dict:
             - crimes (Criminal)
             - events, notifications (Events)
     """
+    # Fetch main data from v1 (most selections)
     selections = (
-        "basic,bars,cooldowns,money,networth,icons,education,"
+        "basic,bars,cooldowns,money,networth,icons,education,travel,"
         "battlestats,workstats,profile,properties,"
         "criminalrecord,events,notifications,equipment,jobpoints,gym"
     )
-    return fetch_user_data(selections)
+    data = fetch_user_data(selections)
+    
+    # Fetch bars from v2 for accurate fulltime data (v1 doesn't have fulltime for Life)
+    try:
+        url = f"https://api.torn.com/v2/user?key={TORN_API_KEY}&selections=bars"
+        resp = requests.get(url, timeout=10)
+        if resp.status_code == 200:
+            v2_data = resp.json()
+            if "bars" in v2_data:
+                bars_v2 = v2_data["bars"]
+                # Merge v2 bars data (with proper fulltime) into v1 format
+                for bar_name in ["energy", "nerve", "happy", "life"]:
+                    if bar_name in bars_v2 and bars_v2[bar_name]:
+                        bar_data = bars_v2[bar_name]
+                        # Convert v2 naming (full_time) to v1 naming (fulltime)
+                        data[bar_name] = {
+                            "current": bar_data.get("current", 0),
+                            "maximum": bar_data.get("maximum", 0),
+                            "increment": bar_data.get("increment", 0),
+                            "interval": bar_data.get("interval", 0),
+                            "ticktime": bar_data.get("tick_time", 0),
+                            "fulltime": bar_data.get("full_time", 0),
+                        }
+    except Exception as e:
+        logger.warning(f"Failed to fetch v2 bars data: {e}")
+        # Continue with v1 data if v2 fails
+    
+    return data
 
 
 def get_property_data() -> dict:

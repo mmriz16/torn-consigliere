@@ -677,7 +677,7 @@ def get_menu_data() -> dict:
             - events, notifications (Events)
     """
     selections = (
-        "basic,bars,cooldowns,money,networth,icons,"
+        "basic,bars,cooldowns,money,networth,icons,education,"
         "battlestats,workstats,profile,properties,"
         "criminalrecord,events,notifications,equipment,jobpoints,gym"
     )

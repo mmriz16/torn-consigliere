@@ -127,16 +127,15 @@ STATUS_MENU_KB = ReplyKeyboardMarkup(
             KeyboardButton("🛡️")
         ],
         [
-            KeyboardButton("🔫"), KeyboardButton("📅"),
-            KeyboardButton("💰"), KeyboardButton("💬"),
-            KeyboardButton("✈️")
+            KeyboardButton("🔫"), KeyboardButton("💰"),
+            KeyboardButton("💬"), KeyboardButton("✈️")
         ]
     ],
     resize_keyboard=True
 )
 
 # Menu button texts for detection (emoji only)
-STATUS_MENU_BUTTONS = ["📊", "🏠", "🏋️", "💼", "🛡️", "🔫", "📅", "💰", "💬", "✈️"]
+STATUS_MENU_BUTTONS = ["📊", "🏠", "🏋️", "💼", "🛡️", "🔫", "💰", "💬", "✈️"]
 
 
 @auth_required
@@ -530,6 +529,10 @@ def format_general_stats(data: dict) -> str:
     if total_nw == 0 and isinstance(networth, dict):
         total_nw = sum(v for k,v in networth.items() if isinstance(v, (int, float)))
     
+    # Education status
+    edu_time = data.get("education_timeleft", 0)
+    edu_status = format_education_status(edu_time)
+    
     # Time (WIB)
     now_str = get_wib_now().strftime("%H:%M")
     
@@ -552,6 +555,7 @@ def format_general_stats(data: dict) -> str:
         f"💊 {format_cooldown_with_time('Drug   ', drug_cd)}\n"
         f"💉 {format_cooldown_with_time('Booster', booster_cd)}\n"
         f"🚑 {format_cooldown_with_time('Medical', medical_cd)}\n"
+        f"🎓 <code>Edu    :</code> {edu_status}\n"
         f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
         f"🔄 <i>Auto-refresh 1 min | Pilih menu ⬇️</i>"
     )
@@ -772,9 +776,6 @@ def format_job_stats(data: dict) -> str:
                     if isinstance(points, (int, float)):
                         job_points += int(points)
     
-    # Days in company
-    days_in_company = job.get("days_in_company", 0)
-    
     # Company rating - need to fetch from Company API
     company_id = job.get("company_id", 0)
     rating = "☆☆☆☆☆"  # Default
@@ -793,6 +794,18 @@ def format_job_stats(data: dict) -> str:
                     rating = "⭐" * rating_5 + "☆" * (5 - rating_5) if rating_5 > 0 else "☆☆☆☆☆"
         except Exception:
             pass  # Keep default rating on error
+    
+    # Fetch days_in_company from API v2 (not available in v1)
+    days_in_company = 0
+    try:
+        import requests
+        from torn_api import TORN_API_KEY
+        url_v2 = f"https://api.torn.com/v2/user/job?key={TORN_API_KEY}"
+        response_v2 = requests.get(url_v2, timeout=5)
+        job_v2 = response_v2.json().get("job", {})
+        days_in_company = job_v2.get("days_in_company", 0)
+    except Exception:
+        pass  # Keep default 0 on error
     
     # Get Work Stats
     manual = data.get("manual_labor", 0)
@@ -824,87 +837,79 @@ def format_job_stats(data: dict) -> str:
 
 
 def format_gear_stats(data: dict) -> str:
-    """Format Gear menu - Equipped weapons and armor with stats from itemstats API."""
+    """Format Gear menu - Equipped weapons and armor with stats from API v2."""
     import requests
-    from torn_api import TORN_API_BASE_URL, TORN_API_KEY
+    from torn_api import TORN_API_KEY
     
     name = html.escape(data.get("name", "Unknown"))
     now_str = get_wib_now().strftime("%H:%M")
     
-    # Get equipment data from API
-    equipment = data.get("equipment", [])
-    
-    # Equipped slot mapping:
-    # 1 = Primary, 2 = Secondary, 3 = Melee
-    # 4 = Body Armor, 6 = Helmet, 7 = Pants, 8 = Boots, 9 = Gloves
-    
-    WEAPON_SLOTS = {1: "Primary", 2: "Secondary", 3: "Melee"}
-    ARMOR_SLOTS = {4: "Body", 6: "Helmet", 7: "Pants", 8: "Boots", 9: "Gloves"}
-    
+    # Fetch equipment from API v2 (has decimal stats)
     weapons = []
     armor_items = []
-    total_damage = 0
-    total_accuracy = 0
-    total_armor = 0
+    total_damage = 0.0
+    total_accuracy = 0.0
+    total_armor = 0.0
     
-    # Helper function to get itemstats from torn API
-    def get_itemstats(uid):
-        try:
-            url = f"{TORN_API_BASE_URL}/torn/{uid}?selections=itemstats&key={TORN_API_KEY}"
-            response = requests.get(url, timeout=5)
-            return response.json().get("itemstats", {})
-        except Exception:
-            return {}
-    
-    # Parse equipment list and fetch itemstats
-    if isinstance(equipment, list):
+    try:
+        url = f"https://api.torn.com/v2/user/equipment?key={TORN_API_KEY}"
+        response = requests.get(url, timeout=10)
+        equipment = response.json().get("equipment", [])
+        
+        # Slot mapping for API v2
+        # Weapons: 1=Primary, 2=Secondary, 3=Melee
+        # Armor: 4=Body, 6=Helmet, 7=Pants, 8=Boots, 9=Gloves
+        WEAPON_SLOTS = {1: "Primary", 2: "Secondary", 3: "Melee"}
+        ARMOR_SLOTS = {4: "Body", 6: "Helmet", 7: "Pants", 8: "Boots", 9: "Gloves"}
+        
         for item in equipment:
-            if isinstance(item, dict):
-                item_name = item.get("name", "Unknown")
-                equipped_slot = item.get("equipped", 0)
-                uid = item.get("UID", 0)
+            if not isinstance(item, dict):
+                continue
                 
-                if equipped_slot in WEAPON_SLOTS:
-                    # Get itemstats for weapon
-                    stats = get_itemstats(uid) if uid else {}
-                    damage = stats.get("damage", 0)
-                    accuracy = stats.get("acc", 0)
-                    
-                    slot_name = WEAPON_SLOTS[equipped_slot]
-                    weapons.append({
-                        "name": item_name,
-                        "slot": slot_name,
-                        "damage": damage,
-                        "accuracy": accuracy
-                    })
-                    total_damage += damage
-                    total_accuracy += accuracy
-                    
-                elif equipped_slot in ARMOR_SLOTS:
-                    # Get itemstats for armor
-                    stats = get_itemstats(uid) if uid else {}
-                    armor_val = stats.get("arm", 0)
-                    
-                    slot_name = ARMOR_SLOTS[equipped_slot]
-                    armor_items.append({
-                        "name": item_name,
-                        "slot": slot_name,
-                        "armor": armor_val
-                    })
-                    total_armor += armor_val
+            item_name = item.get("name", "Unknown")
+            slot = item.get("slot", 0)
+            stats = item.get("stats", {})
+            
+            if slot in WEAPON_SLOTS:
+                damage = stats.get("damage") or 0
+                accuracy = stats.get("accuracy") or 0
+                
+                weapons.append({
+                    "name": item_name,
+                    "slot": WEAPON_SLOTS[slot],
+                    "damage": damage,
+                    "accuracy": accuracy
+                })
+                total_damage += damage
+                total_accuracy += accuracy
+                
+            elif slot in ARMOR_SLOTS:
+                armor_val = stats.get("armor") or 0
+                
+                armor_items.append({
+                    "name": item_name,
+                    "slot": ARMOR_SLOTS[slot],
+                    "armor": armor_val
+                })
+                total_armor += armor_val
+    except Exception as e:
+        logger.error(f"Failed to fetch equipment from API v2: {e}")
     
     # Sort weapons: Primary, Secondary, Melee
     WEAPON_ORDER = {"Primary": 1, "Secondary": 2, "Melee": 3}
     weapons.sort(key=lambda x: WEAPON_ORDER.get(x['slot'], 99))
     
-    # Format weapons - two lines per weapon
+    # Format weapons with decimal stats
     weapons_lines = []
     for w in weapons:
         icon = "🔫" if w['slot'] in ["Primary", "Secondary"] else "🗡️"
-        slot_padded = f"{w['slot']:<9}"  # Pad slot name
+        slot_padded = f"{w['slot']:<9}"
+        # Format with 2 decimal places
+        dmg_str = f"{w['damage']:.2f}" if isinstance(w['damage'], float) else str(w['damage'])
+        acc_str = f"{w['accuracy']:.2f}" if isinstance(w['accuracy'], float) else str(w['accuracy'])
         weapons_lines.append(
             f"       {icon} {slot_padded} : <b>{w['name']}</b>\n"
-            f"              | ⚔️ {w['damage']} | 🎯 {w['accuracy']} |"
+            f"              | ⚔️ {dmg_str} | 🎯 {acc_str} |"
         )
     
     if not weapons_lines:
@@ -916,13 +921,14 @@ def format_gear_stats(data: dict) -> str:
     ARMOR_ORDER = {"Helmet": 1, "Body": 2, "Gloves": 3, "Pants": 4, "Boots": 5}
     armor_items.sort(key=lambda x: ARMOR_ORDER.get(x['slot'], 99))
     
-    # Format armor - two lines per armor
+    # Format armor with decimal stats
     armor_lines = []
     for a in armor_items:
-        slot_padded = f"{a['slot']:<6}"  # Pad slot name
+        slot_padded = f"{a['slot']:<6}"
+        armor_str = f"{a['armor']:.2f}" if isinstance(a['armor'], float) else str(a['armor'])
         armor_lines.append(
             f"      🛡️ {slot_padded} : <b>{a['name']}</b>\n"
-            f"             | 🛡️ {a['armor']} |"
+            f"             | 🛡️ {armor_str} |"
         )
     
     if not armor_lines:
@@ -930,14 +936,15 @@ def format_gear_stats(data: dict) -> str:
     else:
         armor_text = "\n".join(armor_lines)
     
+    # Format totals with 2 decimal places
     msg = (
         f"🛡️ <b>GEAR & EQUIPMENT</b>\n"
         f"👤 <b>{name}</b> | 🕒 {now_str} WIB\n"
         f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
         f"📊 <b>TOTAL STATS:</b>\n"
-        f"<code>⚔️ Damage   :</code> {total_damage}\n"
-        f"<code>🎯 Accuracy :</code> {total_accuracy}\n"
-        f"<code>🛡️ Armor    :</code> {total_armor}\n"
+        f"<code>⚔️ Damage   :</code> {total_damage:.2f}\n"
+        f"<code>🎯 Accuracy :</code> {total_accuracy:.2f}\n"
+        f"<code>🛡️ Armor    :</code> {total_armor:.2f}\n"
         f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
         f"🔫 <b>WEAPONS:</b> ({len(weapons)} equipped)\n"
         f"{weapons_text}\n"
@@ -1574,6 +1581,176 @@ async def property_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
 
+async def stats_hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle Stats Hub inline button callbacks (📩 Inbox, 🔔 Events, 🏅 Awards)."""
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    import requests
+    from torn_api import TORN_API_KEY, fetch_user_data
+    
+    query = update.callback_query
+    await query.answer()
+    
+    callback_data = query.data
+    now_str = get_wib_now().strftime("%H:%M")
+    
+    # Back button for all sub-menus
+    back_button = [[InlineKeyboardButton("🔙 Back to Stats", callback_data="stats_back")]]
+    
+    # === INBOX ===
+    if callback_data == "stats_inbox":
+        try:
+            # Fetch messages from API
+            url = f"https://api.torn.com/v2/user/messages?key={TORN_API_KEY}"
+            resp = requests.get(url, timeout=10)
+            messages_data = resp.json().get("messages", [])
+            
+            # Get first 5 messages
+            inbox_text = ""
+            if messages_data:
+                for i, msg in enumerate(messages_data[:5], 1):
+                    sender = msg.get("sender", {}).get("name", "Unknown")
+                    subject = msg.get("title", "No subject")[:25]
+                    if len(msg.get("title", "")) > 25:
+                        subject += "..."
+                    read_status = "📬" if msg.get("read", False) else "📩"
+                    inbox_text += f"{read_status} <b>{sender}</b>\n   └ {subject}\n"
+            else:
+                inbox_text = "📭 <i>Inbox kosong</i>\n"
+            
+            msg = (
+                f"📩 <b>INBOX</b>\n"
+                f"🕒 {now_str} WIB\n"
+                f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+                f"{inbox_text}"
+                f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+                f"🔗 <a href='https://www.torn.com/messages.php'>Open in Torn</a>"
+            )
+        except Exception as e:
+            logger.error(f"Inbox API error: {e}")
+            msg = f"📩 <b>INBOX</b>\n\n❌ Gagal memuat pesan.\n<i>{str(e)[:50]}</i>"
+        
+        await query.edit_message_text(
+            msg,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(back_button),
+            disable_web_page_preview=True
+        )
+        return
+    
+    # === EVENTS ===
+    if callback_data == "stats_events":
+        try:
+            data = fetch_user_data("events")
+            events = data.get("events", {})
+            
+            events_text = ""
+            if events:
+                # Sort by timestamp descending
+                sorted_events = sorted(events.items(), key=lambda x: x[1].get("timestamp", 0), reverse=True)
+                for event_id, event in sorted_events[:8]:
+                    event_text = event.get("event", "Unknown event")
+                    # Clean HTML from event text
+                    import re
+                    clean_text = re.sub(r'<[^>]+>', '', event_text)[:60]
+                    if len(event.get("event", "")) > 60:
+                        clean_text += "..."
+                    events_text += f"• {clean_text}\n"
+            else:
+                events_text = "📭 <i>No recent events</i>\n"
+            
+            msg = (
+                f"🔔 <b>EVENTS</b>\n"
+                f"🕒 {now_str} WIB\n"
+                f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+                f"{events_text}"
+                f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+                f"🔗 <a href='https://www.torn.com/events.php'>Open in Torn</a>"
+            )
+        except Exception as e:
+            logger.error(f"Events error: {e}")
+            msg = f"🔔 <b>EVENTS</b>\n\n❌ Gagal memuat events."
+        
+        await query.edit_message_text(
+            msg,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(back_button),
+            disable_web_page_preview=True
+        )
+        return
+    
+    # === AWARDS ===
+    if callback_data == "stats_awards":
+        try:
+            data = fetch_user_data("medals,honors")
+            medals = data.get("medals_awarded", [])
+            honors = data.get("honors_awarded", [])
+            
+            total_medals = len(medals)
+            total_honors = len(honors)
+            
+            # Get recent awards (last 5)
+            recent_text = ""
+            if medals:
+                for m in medals[-3:]:
+                    recent_text += f"🏅 Medal #{m}\n"
+            if honors:
+                for h in honors[-3:]:
+                    recent_text += f"🎖️ Honor #{h}\n"
+            
+            if not recent_text:
+                recent_text = "📭 <i>No recent awards</i>\n"
+            
+            msg = (
+                f"🏅 <b>AWARDS</b>\n"
+                f"🕒 {now_str} WIB\n"
+                f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+                f"🏅 <b>Medals:</b> {total_medals}\n"
+                f"🎖️ <b>Honors:</b> {total_honors}\n"
+                f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+                f"<b>Recent:</b>\n"
+                f"{recent_text}"
+                f"➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+                f"🔗 <a href='https://www.torn.com/awards.php'>View All Awards</a>"
+            )
+        except Exception as e:
+            logger.error(f"Awards error: {e}")
+            msg = f"🏅 <b>AWARDS</b>\n\n❌ Gagal memuat awards."
+        
+        await query.edit_message_text(
+            msg,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(back_button),
+            disable_web_page_preview=True
+        )
+        return
+    
+    # === BACK TO STATS ===
+    if callback_data == "stats_back":
+        # Fetch full data for General Stats
+        try:
+            data = get_menu_data()
+        except:
+            data = {}
+        
+        # Use the full format_general_stats for complete display
+        msg = format_general_stats(data)
+        
+        buttons = [
+            [
+                InlineKeyboardButton("📩 Inbox", callback_data="stats_inbox"),
+                InlineKeyboardButton("🔔 Events", callback_data="stats_events"),
+                InlineKeyboardButton("🏅 Awards", callback_data="stats_awards")
+            ]
+        ]
+        
+        await query.edit_message_text(
+            msg,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        return
+
+
 async def handle_status_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE, button_text: str):
     """
     Handle Reply Keyboard button clicks for status menu navigation.
@@ -1820,15 +1997,37 @@ async def handle_status_menu_button(update: Update, context: ContextTypes.DEFAUL
         )
         return
     
+    if button_text == "📊":  # General Stats with inline menu for Inbox/Events/Awards
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        
+        # Use the full format_general_stats for complete display
+        msg = format_general_stats(data)
+        
+        # Add inline buttons for sub-menus
+        buttons = [
+            [
+                InlineKeyboardButton("📩 Inbox", callback_data="stats_inbox"),
+                InlineKeyboardButton("🔔 Events", callback_data="stats_events"),
+                InlineKeyboardButton("🏅 Awards", callback_data="stats_awards")
+            ]
+        ]
+        
+        await update.message.reply_text(
+            msg,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        context.user_data['current_menu'] = 'general'
+        return
+    
     # Map button text to formatter (emoji-only)
     # Note: 🔫 is handled by special handler above with Baldr's inline buttons
+    # Note: 📊 is handled above as Stats Hub with inline buttons
     menu_formatters = {
-        "📊": format_general_stats,
         "🏠": format_property_stats,
         "🏋️": format_gym_stats,
         "💼": format_job_stats,
         "🛡️": format_gear_stats,
-        "📅": format_events_stats,
     }
     
     formatter = menu_formatters.get(button_text, format_general_stats)

@@ -98,6 +98,7 @@ def main():
         handle_status_menu_callback,
         baldr_refresh_callback,
         property_callback,
+        stats_hub_callback,
         market_start, market_search, market_cancel, MARKET_SEARCH,
         ai_advisor_start, ai_advisor_chat, ai_advisor_cancel, AI_ADVISOR
     )
@@ -113,6 +114,9 @@ def main():
     
     # Status menu navigation callback (V2.0 multi-menu)
     application.add_handler(CallbackQueryHandler(handle_status_menu_callback, pattern=r"^menu_"))
+    
+    # Stats Hub callback (📩 Inbox, 🔔 Events, 🏅 Awards)
+    application.add_handler(CallbackQueryHandler(stats_hub_callback, pattern=r"^stats_"))
     
     # Market Conversation Handler (continuous item search)
     market_conv_handler = ConversationHandler(

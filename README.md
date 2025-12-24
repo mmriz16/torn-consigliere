@@ -13,13 +13,12 @@ Dashboard real-time dengan navigasi emoji yang compact dan intuitif:
 
 | Emoji | Menu | Deskripsi |
 |:---:|---|---|
-| 📊 | **General Stats** | Status, bars (energy/nerve/happy/life), finance, cooldowns |
+| 📊 | **Stats Hub** | **NEW!** Status summary + Inline: 📩 Inbox, 🔔 Events, 🏅 Awards |
 | 🏠 | **Property** | Info properti, happy bonus, property market browser |
 | 🏋️ | **Gym** | Battle stats, predictive gains, gym info |
 | 💼 | **Job** | Company info, job points, work stats |
 | 🛡️ | **Gear** | Equipped weapons & armor dengan stats detail |
 | 🔫 | **Criminal** | Criminal record dengan XP tracker untuk leveling |
-| 📅 | **Events** | Recent events dan notifications |
 | 💰 | **Market** | Item search dengan harga bazaar & market |
 | 💬 | **AI Advisor** | Context-aware AI chat (Groq llama-3.3-70b) |
 | ✈️ | **Travel** | Status perjalanan dan info negara |

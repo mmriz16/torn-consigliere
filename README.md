@@ -1,6 +1,6 @@
-# 🎩 The Consigliere v4.0
+# 🎩 The Consigliere v4.2
 
-**Personal Telegram Bot untuk Torn City** - Bot asisten pribadi dengan fitur AI advisor, real-time monitoring, dan multi-menu dashboard.
+**Personal Telegram Bot untuk Torn City** - Bot asisten pribadi dengan fitur AI advisor, real-time monitoring, Criminal Path Advisor, dan Travel Intelligence.
 
 > Bot ini dirancang untuk personal use dengan autentikasi USER_ID.
 
@@ -13,46 +13,97 @@ Dashboard real-time dengan navigasi emoji yang compact dan intuitif:
 
 | Emoji | Menu | Deskripsi |
 |:---:|---|---|
-| 📊 | **Stats Hub** | **NEW!** Status summary + Inline: 📩 Inbox, 🔔 Events, 🏅 Awards |
+| 📊 | **Stats Hub** | Status summary + Inline: 📩 Inbox, 🔔 Events, 🏅 Awards |
 | 🏠 | **Property** | Info properti, happy bonus, property market browser |
 | 🏋️ | **Gym** | Battle stats, predictive gains, gym info |
 | 💼 | **Job** | Company info, job points, work stats |
 | 🛡️ | **Gear** | Equipped weapons & armor dengan stats detail |
-| 🔫 | **Criminal** | Criminal record dengan XP tracker untuk leveling |
+| 🔫 | **Criminal** | **Criminal Path Advisor** dengan EA calculator |
 | 💰 | **Market** | Item search dengan harga bazaar & market |
 | 💬 | **AI Advisor** | Context-aware AI chat (Groq llama-3.3-70b) |
-| ✈️ | **Travel** | Status perjalanan dan info negara |
+| ✈️ | **Travel** | **Travel Intelligence** dengan profit calculator |
+
+### 🎯 Criminal Path Advisor (NEW!)
+Sistem panduan kejahatan berbasis Effective Arsons (EA):
+
+- **EA Calculator** - Kalkulasi EA dari criminal record
+- **EA Levels** - Novice → Amateur → Professional → Expert → Elite → Master → Legend
+- **Crime Safety Status** - Indikator keamanan per jenis crime (🟢 Safe / 🟡 Caution / 🔴 Danger)
+- **Progress Bar** - Visual progress menuju milestone berikutnya
+- **Consigliere Tips** - Saran dinamis berdasarkan level EA
+
+### ✈️ Travel Intelligence (NEW!)
+Fitur kalkulasi profit travel dengan Anti-Zonk protection:
+
+- **Top 3 Destinations** - Ranked by profit tertinggi
+- **Modal Tunai** - Kalkulasi modal (Buy Price × Capacity)
+- **Anti-Zonk Warning** - ⚠️ DANA KURANG! jika cash kurang
+- **Profit After Tax** - Sudah termasuk pajak market 5%
+- **Flight Time** - Format jam:menit (PP = Pulang-Pergi)
+- **Gatekeeper Level 15** - Blokir travel untuk level < 15
+
+### 🎯 Baldr's Leveling Targets (Enhanced!)
+- 6 targets dengan level tertinggi
+- Filter status "Okay" only (bukan Hospital/Jail)
+- Layout compact 3-3-1
+- Inline attack buttons dengan Lvl indicator
 
 ### 🧠 AI-Powered Features
 - **AI Crime Advisor** - Saran crime berdasarkan nerve dan level
 - **Battle Log Analysis** - Analisa pertarungan dengan saran improvement
 - **AI Advisor Chat** - Context-aware assistant dengan data karakter real-time
-- **Item Description Summarizer** - AI summary untuk item descriptions
 
 ### ⏰ Background Monitoring (Scheduler)
 Notifikasi otomatis yang berjalan di background:
 
 | Alert | Trigger |
 |---|---|
-| 🔋 Energy Full | Energy bar penuh |
-| 💢 Nerve Full | Nerve bar penuh |
+| ⚡ Energy Full | Energy bar penuh |
+| 🔥 Nerve Full | Nerve bar penuh |
 | 🏥 Hospital Exit | Keluar dari rumah sakit |
 | 💊 Drug Cooldown | Cooldown drug selesai |
 | 💉 Booster Cooldown | Cooldown booster selesai |
-| ✈️ Travel Landing | 2 menit sebelum landing |
+| ✈️ **Departure Alert** | Saat mulai terbang (Pre-Flight Checklist) |
+| 🛬 **Landing Alert** | 2 menit sebelum landing (Post-Landing Checklist) |
 | 📚 Education | 1 jam sebelum course selesai |
 | 📢 Event Watcher | New events (Satpam System) |
+| 📩 Inbox Spy | Pesan baru dari player lain |
+
+#### Departure Alert (NEW!)
+```
+✈️ OPERASI LINTAS NEGARA: UAE
+━━━━━━━━━━━━━━━━━
+📋 Pre-Flight Checklist:
+• Nerve: 5/18 ✅
+• Energy: 10/100 ❌ Belum habis!
+• Cash: $21,099 (Modal: $112,000) ⚠️ DANA KURANG!
+
+📦 Target: 8× Camel Plushie
+💰 Est. Profit: $480,800
+⏱️ ETA Landing: 4h 31m
+━━━━━━━━━━━━━━━━━
+🎯 EA: 76 (Professional)
+```
+
+#### Landing Alert (NEW!)
+```
+🛬 WELCOME BACK, BOS!
+━━━━━━━━━━━━━━━━━
+📍 Mendarat di UAE dalam 2m 0s!
+
+📋 Post-Landing Checklist:
+• Jual 8× Camel Plushie ($480,800)
+• Habiskan Nerve untuk crime
+• Cek stok Plushie & Flower
+
+🎯 EA: 76/100 (Professional)
+```
 
 ### 🏠 Property Market Browser
 - Browse rental & selling listings per property type
 - Holy Trinity filter (Airstrip + Vault + Medical Lab)
 - Best Value algorithm dengan cost-to-happiness ratio
 - Budget warning indicator
-
-### 🎯 Baldr's Leveling Targets
-- Database target untuk training (dari `baldr_targets.json`)
-- Filter by level range
-- Refresh callback untuk update data
 
 ---
 
@@ -61,13 +112,16 @@ Notifikasi otomatis yang berjalan di background:
 ```
 bot-torn/
 ├── main.py              # Entry point, Flask keep-alive, handlers registration
-├── handlers.py          # Telegram command & message handlers (2700+ lines)
+├── handlers.py          # Telegram command & message handlers (3000+ lines)
 ├── torn_api.py          # Torn API client dengan endpoint wrapper
 ├── scheduler.py         # APScheduler untuk background monitoring
+├── crime_advisor.py     # Criminal Path Advisor (EA calculator & tips)
+├── travel_data.py       # Travel Intelligence data & profit calculator
+├── awards_analyzer.py   # Merit Hunter awards tracking
+├── awards_reference.json # Awards database dengan API key mappings
 ├── groq_client.py       # Groq AI client (llama-3.3-70b-versatile)
 ├── config.py            # Environment variables loader
 ├── property_data.py     # Property types & market helpers
-├── travel_data.py       # Country data & travel items untuk smuggling
 ├── item_cache.py        # Item database caching
 ├── items.py             # Item utilities
 ├── utils.py             # Utility functions
@@ -117,7 +171,7 @@ python main.py
 Bot akan berjalan dengan:
 - HTTP server di port 8080 (untuk keep-alive)
 - Telegram polling untuk menerima pesan
-- Background scheduler untuk monitoring
+- Background scheduler untuk monitoring (60s interval)
 
 ---
 
@@ -161,6 +215,24 @@ Bot akan berjalan dengan:
 - Bot menggunakan **autentikasi USER_ID** - hanya user dengan ID yang terdaftar di `.env` yang dapat mengakses bot
 - API keys disimpan di environment variables (tidak di-commit ke git)
 - Rate limiting dihandle oleh Torn API
+
+---
+
+## 📝 Changelog
+
+### v4.2 (December 2024)
+- ✨ **Criminal Path Advisor** - EA calculator, crime safety, tips
+- ✨ **Travel Intelligence** - Profit calculator dengan Anti-Zonk
+- ✨ **Departure/Landing Alerts** - Pre/Post-Flight Checklist
+- ✨ **Merit Hunter** - Awards tracking dengan progress bar
+- 🔧 Fixed Life bar fulltime display
+- 🔧 Enhanced Baldr's Targets (6 targets, level sort, 3-3-1 layout)
+
+### v4.0
+- Multi-menu dashboard
+- AI Advisor chat
+- Property market browser
+- Background scheduler
 
 ---
 

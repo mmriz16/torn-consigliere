@@ -22,6 +22,7 @@ previous_state = {
     "drug_cooldown_was_active": False,
     "booster_cooldown_was_active": False,
     "travel_notified": False,
+    "departure_notified": False,
     "was_traveling": False,
     "education_notified": False,
     "was_studying": False,
@@ -99,17 +100,120 @@ async def check_and_notify(bot: Bot):
         messages.append("💉 *BOOSTER COOLDOWN SELESAI!*\nBos bisa pakai Booster lagi!")
     previous_state["booster_cooldown_was_active"] = booster_cooldown > 0
     
-    # === Travel Landing Alert (2 min before) ===
+    # === Travel Departure & Landing Alerts ===
     travel = data.get("travel", {})
     travel_time_left = travel.get("time_left", 0)
     destination = travel.get("destination", "")
     is_traveling = travel_time_left > 0 and destination != "Torn"
     
+    # Get additional data for travel notifications
+    money = data.get("money_onhand", 0)
+    nerve = data.get("nerve", {})
+    nerve_current = nerve.get("current", 0)
+    nerve_max = nerve.get("maximum", 0)
+    
+    # === DEPARTURE ALERT (when travel just started) ===
     if is_traveling and not previous_state["was_traveling"]:
         previous_state["travel_notified"] = False
+        previous_state["departure_notified"] = True
+        
+        # Calculate flight time in hours:minutes
+        hours = travel_time_left // 3600
+        mins = (travel_time_left % 3600) // 60
+        eta_str = f"{hours}h {mins}m" if hours > 0 else f"{mins}m"
+        
+        # Get travel item info
+        from travel_data import COUNTRIES, get_carry_capacity, TRAVEL_ITEMS
+        from crime_advisor import calculate_ea, get_ea_level, get_consigliere_tip
+        
+        # Calculate EA from criminalrecord
+        criminalrecord = data.get("criminalrecord", {})
+        ea = calculate_ea(criminalrecord)
+        ea_level = get_ea_level(ea)
+        
+        # Get carry capacity
+        level = data.get("level", 1)
+        carry_cap = get_carry_capacity(level)
+        
+        # Find destination data
+        dest_key = destination.lower().replace(" ", "_")
+        dest_data = COUNTRIES.get(dest_key, {})
+        
+        # Find best item for this destination
+        best_item = None
+        modal = 0
+        for item_id, item in TRAVEL_ITEMS.items():
+            if item.get("country") == dest_key:
+                if best_item is None or item.get("market_est", 0) > best_item.get("market_est", 0):
+                    best_item = item
+        
+        if best_item:
+            modal = best_item.get("buy", 0) * carry_cap
+            item_name = best_item.get("name", "items")
+            market_net = int(best_item.get("market_est", 0) * 0.95)
+            profit = (market_net - best_item.get("buy", 0)) * carry_cap
+        else:
+            item_name = "items"
+            profit = 0
+        
+        # Cash warning
+        cash_status = "✅" if money >= modal else "⚠️ DANA KURANG!"
+        
+        departure_msg = (
+            f"✈️ *OPERASI LINTAS NEGARA: {destination}*\n"
+            f"━━━━━━━━━━━━━━━━━\n"
+            f"📋 *Pre-Flight Checklist:*\n"
+            f"• Nerve: {nerve_current}/{nerve_max} {'✅' if nerve_current < 5 else '❌ Belum habis!'}\n"
+            f"• Energy: {energy_current}/{energy_max} {'✅' if energy_current < 10 else '❌ Belum habis!'}\n"
+            f"• Cash: ${money:,} (Modal: ${modal:,}) {cash_status}\n\n"
+            f"📦 *Target:* {carry_cap}× {item_name}\n"
+            f"💰 *Est. Profit:* ${profit:,}\n"
+            f"⏱️ *ETA Landing:* {eta_str}\n"
+            f"━━━━━━━━━━━━━━━━━\n"
+            f"🎯 *EA:* {ea:.0f} ({ea_level['name']})\n"
+            f"💡 _{get_consigliere_tip(ea, ea_level)}_"
+        )
+        messages.append(departure_msg)
     
+    # === LANDING ALERT (2 min before) ===
     if is_traveling and travel_time_left <= 120 and not previous_state["travel_notified"]:
-        messages.append(f"✈️ *MENDARAT SEGERA!*\nBos mendarat di *{destination}* dalam {travel_time_left // 60}m {travel_time_left % 60}s!\n\n_Awas begal, siapkan jari!_")
+        from crime_advisor import calculate_ea, get_ea_level, get_consigliere_tip
+        from travel_data import get_carry_capacity, TRAVEL_ITEMS, COUNTRIES
+        
+        criminalrecord = data.get("criminalrecord", {})
+        ea = calculate_ea(criminalrecord)
+        ea_level = get_ea_level(ea)
+        level = data.get("level", 1)
+        carry_cap = get_carry_capacity(level)
+        
+        # Find best item for destination
+        dest_key = destination.lower().replace(" ", "_")
+        best_item = None
+        for item_id, item in TRAVEL_ITEMS.items():
+            if item.get("country") == dest_key:
+                if best_item is None or item.get("market_est", 0) > best_item.get("market_est", 0):
+                    best_item = item
+        
+        if best_item:
+            item_name = best_item.get("name", "items")
+            market_net = int(best_item.get("market_est", 0) * 0.95)
+            profit = (market_net - best_item.get("buy", 0)) * carry_cap
+        else:
+            item_name = "items"
+            profit = 0
+        
+        landing_msg = (
+            f"🛬 *WELCOME BACK, BOS!*\n"
+            f"━━━━━━━━━━━━━━━━━\n"
+            f"📍 Mendarat di *{destination}* dalam {travel_time_left // 60}m {travel_time_left % 60}s!\n\n"
+            f"📋 *Post-Landing Checklist:*\n"
+            f"• Jual {carry_cap}× {item_name} (${profit:,})\n"
+            f"• Habiskan Nerve untuk crime\n"
+            f"• Cek stok Plushie & Flower\n\n"
+            f"🎯 *EA:* {ea:.0f}/{ea_level.get('next_threshold', 100)} ({ea_level['name']})\n"
+            f"💡 _{get_consigliere_tip(ea, ea_level)}_"
+        )
+        messages.append(landing_msg)
         previous_state["travel_notified"] = True
     
     previous_state["was_traveling"] = is_traveling

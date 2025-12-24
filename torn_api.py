@@ -448,12 +448,13 @@ def get_monitor_data() -> dict:
     """
     Get all data needed for background monitoring in one API call (batching).
     
-    Includes: basic, bars, cooldowns, travel, education, events, messages
+    Includes: basic, bars, cooldowns, travel, education, events, messages,
+              criminalrecord (for EA), money (for cash warning), profile (for level)
     
     Returns:
         dict: Combined monitoring data
     """
-    return fetch_user_data("basic,bars,cooldowns,travel,education,events,messages")
+    return fetch_user_data("basic,bars,cooldowns,travel,education,events,messages,criminalrecord,money,profile")
 
 
 def get_messages() -> list:
